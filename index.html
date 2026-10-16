@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Share Pixel">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="robots" content="noindex">
+<title>Share Pixel</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Một cột hẹp cho thao tác một tay trên iPhone: thanh trạng thái → 2 bước → danh sách chờ */
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --line:#d6dce5; --fg:#16202e; --muted:#5b6778;
+  --accent:#1f5fd6; --accent-fg:#ffffff; --ok:#147a4a; --ok-bg:#e3f4ea; --err:#b3261e; --err-bg:#fbe7e5; --wait:#7a5300; --wait-bg:#fff4dc;
+  --sans:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f141c; --surface:#18202b; --line:#2a3544; --fg:#e6ebf2; --muted:#93a0b2;
+  --accent:#6b9cff; --accent-fg:#0b1220; --ok:#5fd39a; --ok-bg:#143325; --err:#ff8a80; --err-bg:#3a1a18; --wait:#f3c768; --wait-bg:#3a2e12; color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.5}
+[hidden]{display:none!important}
+.wrap{max-width:560px;margin:0 auto;display:grid;gap:14px;
+  padding-top:max(20px,env(safe-area-inset-top,0px));padding-bottom:max(40px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+h1{font-size:22px;margin:0;font-weight:700}
+.status{color:var(--muted);font-size:13px;margin-top:2px}
+.status b{color:var(--fg);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;min-width:0}
+.card h2{font-size:16px;margin:0;font-weight:600;display:flex;align-items:center;gap:8px}
+.step{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-fg);font-size:13px;font-weight:700}
+.hint{margin:0;color:var(--muted);font-size:13px}
+label{display:grid;gap:4px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:16px;text-transform:none;letter-spacing:0;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+textarea{font-family:var(--mono);font-size:15px;min-height:88px;resize:vertical}
+input.id{font-family:var(--mono)}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px 14px;background:var(--accent);color:var(--accent-fg);cursor:pointer}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+button.small{padding:7px 10px;font-size:13px}
+button:disabled{opacity:.5}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 140px}
+.res{display:grid;gap:6px}
+.res .grp{border-radius:10px;padding:10px 12px;font-size:14px;display:grid;gap:4px;word-break:break-word}
+.grp.ok{background:var(--ok-bg);color:var(--ok)}
+.grp.err{background:var(--err-bg);color:var(--err)}
+.grp.wait{background:var(--wait-bg);color:var(--wait)}
+.grp .t{font-weight:600}
+.mono{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.list{display:grid}
+.list .it{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding-block:8px;font-size:14px;min-width:0}
+.list .it:last-child{border-bottom:0}
+.pill{font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.wait{background:var(--wait-bg);color:var(--wait)} .pill.unk{background:var(--bg);color:var(--muted)}
+.it .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.overlay{position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:5}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:10}
+.progress{font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ===== Màn hình cài đặt ===== -->
+<div id="setup" class="overlay" hidden>
+  <div class="wrap">
+    <header><div><h1>Cài đặt</h1><div class="status">Chỉ lưu trên trình duyệt của máy này.</div></div>
+      <button id="closeSetup" class="ghost small">Đóng</button></header>
+    <section class="card">
+      <label for="token">Access token (System User)
+        <input id="token" type="password" autocomplete="off" placeholder="EAA…"></label>
+      <label for="biz">ID BM chứa pixel
+        <input id="biz" class="id" inputmode="numeric" placeholder="1234567890"></label>
+      <button id="connectBtn">Kết nối & tải pixel</button>
+      <label for="pixel" id="pixelWrap" hidden>Pixel dùng để share
+        <select id="pixel"></select></label>
+      <button id="savePixelBtn" hidden>Lưu</button>
+      <div id="setupMsg" class="res"></div>
+    </section>
+    <section class="card">
+      <h2>Lấy token System User (làm 1 lần)</h2>
+      <ol class="hint" style="padding-left:18px;margin:0;display:grid;gap:4px">
+        <li>Mở business.facebook.com/settings trong Safari, bấm "aA" → Yêu cầu trang web cho máy tính.</li>
+        <li>Người dùng → Người dùng hệ thống → Thêm (vai trò Admin).</li>
+        <li>Gán tài sản: pixel với toàn quyền.</li>
+        <li>Tạo mã: tích business_management, ads_management, hạn "Không bao giờ".</li>
+        <li>Sao chép token và dán vào ô ở trên.</li>
+      </ol>
+    </section>
+    <section class="card">
+      <h2>Xoá dữ liệu</h2>
+      <p class="hint">Xoá token, cài đặt và danh sách chờ khỏi máy này.</p>
+      <button id="wipeBtn" class="ghost">Xoá tất cả</button>
+      <div id="wipeConfirm" class="row" hidden>
+        <button id="wipeYes">Xác nhận xoá</button><button id="wipeNo" class="ghost">Huỷ</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ===== Màn hình chính ===== -->
+<div class="wrap" id="main">
+  <header>
+    <div>
+      <h1>Share Pixel</h1>
+      <div class="status" id="status">Chưa kết nối</div>
+    </div>
+    <button id="openSetup" class="ghost small">Cài đặt</button>
+  </header>
+
+  <section class="card">
+    <h2><span class="step">1</span> Gửi yêu cầu truy cập</h2>
+    <p class="hint">Dán ID tài khoản QC khách gửi. Nhiều ID cùng lúc được, có "act_" hay dấu phẩy đều được.</p>
+    <textarea id="ids1" placeholder="act_123456789, act_987654321"></textarea>
+    <div class="row">
+      <button id="paste1" class="ghost">Dán</button>
+      <button id="reqBtn">Gửi yêu cầu</button>
+    </div>
+    <div id="out1" class="res"></div>
+    <button id="copyMsgBtn" class="ghost" hidden>Sao chép tin nhắn gửi khách</button>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">2</span> Share pixel</h2>
+    <p class="hint">Sau khi khách báo đã chấp nhận. Mặc định share cho mọi tài khoản đang chờ, hoặc dán ID khác vào ô dưới.</p>
+    <textarea id="ids2" placeholder="Để trống = các tài khoản đang chờ"></textarea>
+    <button id="shareBtn">Share pixel</button>
+    <div id="out2" class="res"></div>
+  </section>
+
+  <section class="card">
+    <h2>Tài khoản đang chờ <span class="pill unk" id="pendCount">0</span></h2>
+    <div class="row">
+      <button id="checkBtn" class="ghost">Kiểm tra trạng thái</button>
+    </div>
+    <div id="pendList" class="list"></div>
+  </section>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+const G = 'https://graph.facebook.com/v25.0/';
+const $ = id => document.getElementById(id);
+const S = {
+  get(k, d=''){ try{ const v = localStorage.getItem('sp_'+k); return v === null ? d : v }catch(e){ return d } },
+  set(k, v){ try{ localStorage.setItem('sp_'+k, v) }catch(e){} },
+  clear(){ try{ Object.keys(localStorage).filter(k => k.startsWith('sp_')).forEach(k => localStorage.removeItem(k)) }catch(e){} }
+};
+const getPending = () => { try{ return JSON.parse(S.get('pending','[]')) }catch(e){ return [] } };
+const setPending = l => { S.set('pending', JSON.stringify([...new Set(l)])); renderPending(); };
+const parseIds = t => [...new Set((t || '').match(/\d{6,}/g) || [])];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function toast(t){ const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
+
+async function copy(text){
+  try{ await navigator.clipboard.writeText(text); toast('Đã sao chép'); }
+  catch(e){ toast('Không sao chép được, hãy chọn và copy thủ công'); }
+}
+
+async function graph(path, method='GET', params={}){
+  const p = new URLSearchParams({...params, access_token: S.get('token')});
+  try{
+    const res = method === 'GET'
+      ? await fetch(G + path + '?' + p.toString())
+      : await fetch(G + path, {method:'POST', body:p});
+    return await res.json();
+  }catch(e){
+    return {error:{message:'Không kết nối được Facebook. Kiểm tra mạng rồi thử lại.'}};
+  }
+}
+
+function errText(r){
+  const e = r.error; if(!e) return '';
+  let m = e.error_user_msg || e.message || 'Lỗi không rõ';
+  if(e.code) m += ' (mã ' + e.code + (e.error_subcode ? '/' + e.error_subcode : '') + ')';
+  if(e.code === 190) m = 'Token sai hoặc hết hạn. ' + m;
+  return m;
+}
+
+async function accountName(id){
+  const r = await graph('act_' + id, 'GET', {fields:'name'});
+  return r.error ? null : (r.name || 'act_' + id);
+}
+
+function groups(el, gs){
+  el.innerHTML = gs.filter(g => g.items.length).map(g =>
+    `<div class="grp ${g.cls}"><div class="t">${esc(g.title)} (${g.items.length})</div>${g.items.map(x => `<div class="mono">${esc(x)}</div>`).join('')}</div>`
+  ).join('');
+}
+
+function renderStatus(){
+  const ready = S.get('token') && S.get('biz') && S.get('pixel');
+  $('status').innerHTML = ready
+    ? `BM <b>${esc(S.get('bizName'))}</b> · Pixel <b>${esc(S.get('pixelName'))}</b>`
+    : 'Chưa kết nối. Bấm Cài đặt để bắt đầu.';
+  return ready;
+}
+
+function renderPending(statuses={}){
+  const l = getPending();
+  $('pendCount').textContent = l.length;
+  $('pendList').innerHTML = l.length ? l.map(id => {
+    const s = statuses[id];
+    const pill = s === undefined ? '<span class="pill unk">Chưa kiểm tra</span>'
+      : s ? '<span class="pill ok">Đã chấp nhận</span>' : '<span class="pill wait">Chưa chấp nhận</span>';
+    return `<div class="it"><span class="nm"><span class="mono">act_${id}</span>${s ? ' · ' + esc(s) : ''}</span>${pill}</div>`;
+  }).join('') : '<p class="hint">Không có tài khoản nào đang chờ.</p>';
+}
+
+function needReady(){ if(!renderStatus()){ openSetup(); return false } return true; }
+
+// ----- Cài đặt -----
+function openSetup(){ $('token').value = S.get('token'); $('biz').value = S.get('biz'); $('setup').hidden = false; }
+$('openSetup').onclick = openSetup;
+$('closeSetup').onclick = () => { $('setup').hidden = true; renderStatus(); };
+
+$('connectBtn').onclick = async () => {
+  const token = $('token').value.trim(), biz = $('biz').value.replace(/\D/g,'');
+  if(!token || !biz) return groups($('setupMsg'), [{cls:'err', title:'Thiếu thông tin', items:['Cần nhập cả token và ID BM.']}]);
+  S.set('token', token); S.set('biz', biz);
+  const b = $('connectBtn'); b.disabled = true; b.textContent = 'Đang kết nối…';
+  const info = await graph(biz, 'GET', {fields:'name'});
+  if(info.error){ b.disabled = false; b.textContent = 'Kết nối & tải pixel'; return groups($('setupMsg'), [{cls:'err', title:'Không đọc được BM', items:[errText(info)]}]); }
+  S.set('bizName', info.name || biz);
+  const px = await graph(biz + '/adspixels', 'GET', {fields:'id,name', limit:'200'});
+  b.disabled = false; b.textContent = 'Kết nối & tải pixel';
+  if(px.error) return groups($('setupMsg'), [{cls:'err', title:'Không tải được pixel', items:[errText(px)]}]);
+  const list = px.data || [];
+  if(!list.length) return groups($('setupMsg'), [{cls:'err', title:'Không có pixel', items:['BM chưa có pixel, hoặc System User chưa được gán pixel.']}]);
+  $('pixel').innerHTML = list.map(p => `<option value="${esc(p.id)}" data-name="${esc(p.name)}">${esc(p.name)} · ${esc(p.id)}</option>`).join('');
+  if(S.get('pixel')) $('pixel').value = S.get('pixel');
+  $('pixelWrap').hidden = false; $('savePixelBtn').hidden = false;
+  groups($('setupMsg'), [{cls:'ok', title:'Đã kết nối BM ' + (info.name || biz), items:['Chọn pixel rồi bấm Lưu.']}]);
+};
+
+$('savePixelBtn').onclick = () => {
+  const o = $('pixel').selectedOptions[0]; if(!o) return;
+  S.set('pixel', o.value); S.set('pixelName', o.dataset.name);
+  $('setup').hidden = true; $('setupMsg').innerHTML = ''; renderStatus(); toast('Đã lưu cài đặt');
+};
+
+$('wipeBtn').onclick = () => { $('wipeConfirm').hidden = false; };
+$('wipeNo').onclick = () => { $('wipeConfirm').hidden = true; };
+$('wipeYes').onclick = () => {
+  S.clear(); $('token').value = ''; $('biz').value = ''; $('pixelWrap').hidden = true; $('savePixelBtn').hidden = true;
+  $('wipeConfirm').hidden = true; renderStatus(); renderPending(); toast('Đã xoá dữ liệu');
+};
+
+// ----- Dán từ clipboard -----
+$('paste1').onclick = async () => {
+  try{ $('ids1').value = await navigator.clipboard.readText(); }
+  catch(e){ $('ids1').focus(); toast('Giữ vào ô để dán'); }
+};
+
+// ----- Bước 1 -----
+let clientMsg = '';
+$('reqBtn').onclick = async () => {
+  if(!needReady()) return;
+  const ids = parseIds($('ids1').value);
+  if(!ids.length) return groups($('out1'), [{cls:'err', title:'Không thấy ID', items:['Không tìm thấy ID hợp lệ nào.']}]);
+  const b = $('reqBtn'); b.disabled = true; $('copyMsgBtn').hidden = true;
+  const sent = [], have = [], bad = []; const pend = getPending();
+  for(const [i, id] of ids.entries()){
+    b.textContent = `Đang xử lý ${i+1}/${ids.length}…`;
+    const name = await accountName(id);
+    if(name){ have.push(`act_${id} · ${name}`); pend.push(id); continue; }
+    const r = await graph(S.get('biz') + '/client_ad_accounts', 'POST', {adaccount_id:'act_' + id, permitted_tasks:'["ADVERTISE","ANALYZE"]'});
+    if(r.error) bad.push(`act_${id}: ${errText(r)}`);
+    else { sent.push('act_' + id); pend.push(id); }
+  }
+  setPending(pend);
+  b.disabled = false; b.textContent = 'Gửi yêu cầu';
+  groups($('out1'), [
+    {cls:'ok', title:'Đã gửi yêu cầu', items:sent},
+    {cls:'ok', title:'BM đã có quyền sẵn, chuyển sang Bước 2', items:have},
+    {cls:'err', title:'Lỗi', items:bad}
+  ]);
+  if(sent.length){
+    clientMsg = `Mình vừa gửi yêu cầu truy cập tài khoản quảng cáo ${sent.join(', ')} từ BM "${S.get('bizName')}" (ID ${S.get('biz')}).\n` +
+      `Bạn vào Trình quản lý quảng cáo hoặc Cài đặt doanh nghiệp, mục Yêu cầu, bấm Chấp nhận giúp mình nhé. Chấp nhận xong báo mình để share pixel.`;
+    $('copyMsgBtn').hidden = false;
+  }
+  if(!bad.length) $('ids1').value = '';
+};
+$('copyMsgBtn').onclick = () => copy(clientMsg);
+
+// ----- Bước 2 -----
+$('shareBtn').onclick = async () => {
+  if(!needReady()) return;
+  const typed = parseIds($('ids2').value);
+  const ids = typed.length ? typed : getPending();
+  if(!ids.length) return groups($('out2'), [{cls:'err', title:'Không có tài khoản', items:['Danh sách chờ trống. Dán ID vào ô ở trên.']}]);
+  const b = $('shareBtn'); b.disabled = true;
+  const ok = [], wait = [], bad = []; let left = getPending();
+  for(const [i, id] of ids.entries()){
+    b.textContent = `Đang share ${i+1}/${ids.length}…`;
+    const name = await accountName(id);
+    if(!name){ wait.push('act_' + id); if(!left.includes(id)) left.push(id); continue; }
+    const r = await graph(S.get('pixel') + '/shared_accounts', 'POST', {account_id:id, business:S.get('biz')});
+    if(r.error) bad.push(`act_${id} · ${name}: ${errText(r)}`);
+    else { ok.push(`act_${id} · ${name}`); left = left.filter(x => x !== id); }
+  }
+  setPending(left);
+  b.disabled = false; b.textContent = 'Share pixel';
+  groups($('out2'), [
+    {cls:'ok', title:'Đã share pixel', items:ok},
+    {cls:'wait', title:'Khách chưa chấp nhận yêu cầu', items:wait},
+    {cls:'err', title:'Lỗi', items:bad}
+  ]);
+  $('ids2').value = '';
+};
+
+// ----- Danh sách chờ -----
+$('checkBtn').onclick = async () => {
+  if(!needReady()) return;
+  const l = getPending(); if(!l.length) return;
+  const b = $('checkBtn'); b.disabled = true; const st = {};
+  for(const [i, id] of l.entries()){ b.textContent = `Đang kiểm tra ${i+1}/${l.length}…`; st[id] = await accountName(id); }
+  b.disabled = false; b.textContent = 'Kiểm tra trạng thái';
+  renderPending(st);
+};
+
+// ----- Khởi động -----
+renderPending();
+if(!renderStatus()) openSetup();
+</script>
+</body>
+</html>
